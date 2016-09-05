@@ -32,6 +32,7 @@ import six
 import json
 import logging
 import requests
+import MySQLdb
 
 from urllib.parse import parse_qs
 
@@ -95,6 +96,7 @@ class AuthPtc(Auth):
         except Exception as e:
             try:
                 self.log.error('Could not retrieve token: %s', r1.json()['errors'][0])
+                self.mark_account_banned(username)
             except Exception as e:
                 self.log.error('Could not retrieve token! (%s)', e)
             return False
@@ -152,6 +154,14 @@ class AuthPtc(Auth):
                 self._access_token = None
                 self._login = False
                 raise AuthException("Could not retrieve a PTC Access Token")
-
-
-        
+    
+    #add by mineschan, custom logic for banned account
+    def mark_account_banned(self, username):
+      db = MySQLdb.connect("HOST","USER","PASSWORD","DB_NAME")
+      cursor = db.cursor()
+      cursor.execute("SET NAMES utf8mb4;") #or utf8 or any other charset you want to handle
+      cursor.execute("SET CHARACTER SET utf8mb4;") #same as above
+      cursor.execute("SET character_set_connection=utf8mb4;") #same as above
+      cursor.execute("UPDATE scan_workers SET banned = NOW() WHERE username = '%s'" % username)
+      db.commit()
+      self.log.debug('PTC account marked as banned: %s', username)
